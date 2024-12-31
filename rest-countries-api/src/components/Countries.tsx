@@ -13,36 +13,67 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Stack,
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { MouseEventHandler, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { Country, FetchCountriesParams } from "@/interfaces/Country";
+
+const PAGE_SIZE = 12;
 
 const Countries = () => {
   const [loading, setLoading] = useState(false);
-  const [countries, setCountries] = useState([]);
-
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [currentRegion, setCurrentRegion] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const fetchCountries = async ({ sort, filter, limit, offset }: FetchCountriesParams) => {
+    // send get request with query params
+    const countriesRes = await fetch(`/api/countries?sort=${sort}&filter=${filter}&limit=${limit}&offset=${offset}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      }
+    });
+    const countriesBody = await countriesRes.json();
+    if (countriesBody.length) {
+      setCountries(countriesBody);
+      console.log(countriesBody);
+    }
+  };
+
+  const fetchRegions = async () => {
+    const regionsRes = await fetch("/api/regions");
+    const regionsBody = await regionsRes.json();
+    if (regionsBody.length) {
+      setRegions(regionsBody);
+      console.log(regionsBody);
+    }
   };
 
   useEffect(() => {
     (async function fetchData() {
       try {
         setLoading(true);
-        const countriesRes = await fetch("/api/countries");
-        const body = await countriesRes.json();
-        if (body.length) {
-          setCountries(body);
-          console.log(body);
-        }
+        await fetchCountries({ 
+          sort: "", 
+          filter: "", 
+          limit: PAGE_SIZE, 
+          offset: 0
+        });
+        await fetchRegions();
       } catch (error: any) {
         console.error(error);
       } finally {
@@ -50,6 +81,7 @@ const Countries = () => {
       }
     })();
   }, []);
+
   return (
     <Container
       maxWidth="lg"
@@ -84,11 +116,12 @@ const Countries = () => {
             aria-expanded={open ? "true" : undefined}
             type="button"
             sx={{ py: 1.5, px: 2, width: 200 }}
-            aria-label="Filter by Region"
+            aria-label={currentRegion || "Filter by Region"}
             onClick={handleClick}
+            disabled={loading}
           >
             <Typography variant="body1" component="p" sx={{ mr: 2 }}>
-              Filter by Region
+              {currentRegion || "Filter by Region"}
             </Typography>
             <KeyboardArrowDownIcon />
           </IconButton>
@@ -104,15 +137,19 @@ const Countries = () => {
             transformOrigin={{ vertical: "top", horizontal: "center" }}
             sx={{ width: 250, display: "block", mt: 1 }}
           >
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              Profile
-            </MenuItem>
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              My account
-            </MenuItem>
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              Logout
-            </MenuItem>
+            {regions.map((region) => (
+              <MenuItem
+                key={region}
+                sx={{ width: 200 }}
+                onClick={() => {
+                  console.log(region);
+                  setCurrentRegion(region);
+                  handleClose();
+                }}
+              >
+                {region}
+              </MenuItem>
+            ))}
           </Menu>
         </Paper>
       </Box>
@@ -144,6 +181,7 @@ const Countries = () => {
                   </Typography>
                   {["population", "region", "capital"].map((key: string) => (
                     <Box
+                      key={key}
                       sx={{
                         display: "flex",
                         flexDirection: "row",
@@ -169,6 +207,9 @@ const Countries = () => {
             </Grid2>
           ))}
       </Grid2>
+      <Typography variant="body2" component="p" sx={{ textAlign: "center" }}>
+        load page {currentPage + 1}
+      </Typography>
     </Container>
   );
 };
