@@ -16794,7 +16794,7 @@ const data = [
 ];
 
 class CountryService {
-  public async getCountries({ sort, filter, limit, offset }: FetchCountriesParams): Promise<any> {
+  public async getCountries({ sort, region, name, limit, offset }: FetchCountriesParams): Promise<any> {
     return new Promise((resolve, _reject) => {
       setTimeout(() => {
         // simulate pagination
@@ -16802,13 +16802,15 @@ class CountryService {
         if (sort) {
           // front end doesn't have sort, skip for now
         }
-        if (filter) {
-          dataRes = dataRes.filter((country: any) => country.region.toLowerCase() === filter.toLowerCase());
+        if (region) {
+          dataRes = dataRes.filter((country: any) => country.region.toLowerCase() === region.toLowerCase());
+        }
+        if (name) {
+          dataRes = dataRes.filter((country: any) => country.name.toLowerCase().includes(name.toLowerCase()));
         }
         // if limit and offset are provided, slice the data
         if (limit && offset?.toString() && limit + offset > 0) {
           dataRes = dataRes.slice(offset, offset + limit);
-          console.log(dataRes.slice(offset, offset + limit).length);
         }
         resolve(dataRes);
       }, 500);

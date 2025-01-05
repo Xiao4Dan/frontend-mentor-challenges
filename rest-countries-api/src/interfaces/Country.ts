@@ -68,4 +68,6 @@ export interface FetchCountriesParams {
   filter?: string;
   limit?: number;
   offset?: number;
+  region?: string;
+  name?: string;
 }

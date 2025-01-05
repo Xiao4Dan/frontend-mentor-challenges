@@ -2,7 +2,6 @@ import {
   Box,
   Button,
   Card,
-  CardActions,
   CardContent,
   CardMedia,
   CircularProgress,
@@ -23,11 +22,16 @@ import { Country, FetchCountriesParams } from "@/interfaces/Country";
 const PAGE_SIZE = 12;
 
 const Countries = () => {
-  const [loading, setLoading] = useState(false);
-  const [countries, setCountries] = useState<Country[]>([]);
+  const [regionsLoaded, setRegionsLoaded] = useState(false);
   const [regions, setRegions] = useState<string[]>([]);
   const [currentRegion, setCurrentRegion] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [currentCountry, setCurrentCountry] = useState<string | null>(null);
+  const [lastCountry, setLastCountry] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -39,48 +43,108 @@ const Countries = () => {
     setAnchorEl(null);
   };
 
-  const fetchCountries = async ({ sort, filter, limit, offset }: FetchCountriesParams) => {
+  const fetchCountries = async ({
+    sort,
+    filter,
+    limit,
+    offset,
+  }: FetchCountriesParams) => {
     // send get request with query params
-    const countriesRes = await fetch(`/api/countries?sort=${sort}&filter=${filter}&limit=${limit}&offset=${offset}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    const countriesRes = await fetch(
+      `/api/countries?sort=${sort}${
+        filter === "" ? "" : `&${filter}`
+      }&limit=${limit}&offset=${offset}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    });
-    const countriesBody = await countriesRes.json();
-    if (countriesBody.length) {
-      setCountries(countriesBody);
-      console.log(countriesBody);
-    }
+    );
+    const countries = await countriesRes.json();
+    const { data, hasMore } = countries;
+    setHasMore(hasMore);
+    return data;
   };
 
   const fetchRegions = async () => {
     const regionsRes = await fetch("/api/regions");
     const regionsBody = await regionsRes.json();
-    if (regionsBody.length) {
-      setRegions(regionsBody);
-      console.log(regionsBody);
-    }
+    return regionsBody;
   };
 
   useEffect(() => {
-    (async function fetchData() {
+    (async () => {
       try {
-        setLoading(true);
-        await fetchCountries({ 
-          sort: "", 
-          filter: "", 
-          limit: PAGE_SIZE, 
-          offset: 0
+        // Preload regions/options
+        const regionsBody = await fetchRegions();
+        if (!regionsBody) {
+          throw new Error("Failed to fetch regions");
+        }
+        setRegions(regionsBody);
+        setRegionsLoaded(true);
+
+        // Fetch first page of countries
+        setLoadingCountries(true);
+        const countriesBody = await fetchCountries({
+          sort: "",
+          filter: "",
+          limit: PAGE_SIZE,
+          offset: 0,
         });
-        await fetchRegions();
-      } catch (error: any) {
+        if (!countriesBody) {
+          throw new Error("Failed to fetch countries");
+        }
+        setCountries(countriesBody);
+        setLoadingCountries(false);
+      } catch (error) {
         console.error(error);
-      } finally {
-        setLoading(false);
       }
     })();
   }, []);
+
+  const handleLoadMore = async (
+    prev: Country[],
+    parms: FetchCountriesParams
+  ) => {
+    const newCountries = await fetchCountries(parms);
+    if (!newCountries) {
+      throw new Error("Failed to fetch countries");
+    }
+    setCurrentPage(currentPage + 1);
+    setCountries([...prev, ...newCountries]);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!regionsLoaded || loadingCountries) return;
+      if (currentCountry !== lastCountry) {
+        console.log("currentCountry has changed:", currentCountry);
+        setLastCountry(currentCountry);
+        // Perform any additional actions here if needed
+        setLoadingCountries(true);
+        console.log("fetching countries", currentRegion, currentCountry);
+        const countriesBody = await fetchCountries({
+          sort: "",
+          filter: `region=${currentRegion || ""}&name=${currentCountry || ""}`,
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        if (!countriesBody) {
+          throw new Error("Failed to fetch countries");
+        }
+        setCurrentPage(0);
+        setCountries(countriesBody);
+        setLoadingCountries(false);
+      }
+    }, 500); // Check every half second
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [currentCountry, lastCountry]);
+
+  useEffect(() => {
+    setLastCountry(null);
+  }, [currentRegion]);
 
   return (
     <Container
@@ -98,7 +162,11 @@ const Countries = () => {
           gap: "24px",
         }}
       >
-        <Paper component="form" sx={{ p: "2px 4px" }}>
+        <Paper
+          component="form"
+          sx={{ p: "2px 4px" }}
+          onSubmit={(e) => e.preventDefault()}
+        >
           <IconButton type="button" sx={{ p: "10px" }} aria-label="search">
             <SearchIcon />
           </IconButton>
@@ -106,6 +174,8 @@ const Countries = () => {
             sx={{ ml: 1, flex: 1 }}
             placeholder="Search for a country"
             inputProps={{ "aria-label": "search for a country" }}
+            value={currentCountry || ""}
+            onChange={(e) => setCurrentCountry(e.target.value)}
           />
         </Paper>
 
@@ -118,7 +188,7 @@ const Countries = () => {
             sx={{ py: 1.5, px: 2, width: 200 }}
             aria-label={currentRegion || "Filter by Region"}
             onClick={handleClick}
-            disabled={loading}
+            disabled={!regionsLoaded}
           >
             <Typography variant="body1" component="p" sx={{ mr: 2 }}>
               {currentRegion || "Filter by Region"}
@@ -142,7 +212,6 @@ const Countries = () => {
                 key={region}
                 sx={{ width: 200 }}
                 onClick={() => {
-                  console.log(region);
                   setCurrentRegion(region);
                   handleClose();
                 }}
@@ -154,18 +223,12 @@ const Countries = () => {
         </Paper>
       </Box>
 
-      {loading && (
-        <Box sx={{ textAlign: "center" }}>
-          <CircularProgress color="secondary" size="30px" value={25} />
-        </Box>
-      )}
-
       <Grid2
         container
         spacing={{ xs: 2, md: 3 }}
         columns={{ sm: 4, md: 12, lg: 16 }}
       >
-        {!loading &&
+        {!loadingCountries &&
           countries.map((country: any) => (
             <Grid2 key={country.name} size={{ sm: 2, md: 4, lg: 4 }}>
               <Card key={country.name}>
@@ -207,9 +270,36 @@ const Countries = () => {
             </Grid2>
           ))}
       </Grid2>
-      <Typography variant="body2" component="p" sx={{ textAlign: "center" }}>
-        load page {currentPage + 1}
-      </Typography>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+          mt: 2,
+        }}
+      >
+        {loadingCountries && <CircularProgress color="secondary" size={30} />}
+        {!loadingCountries && hasMore && (
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() =>
+              handleLoadMore(countries, {
+                sort: "",
+                filter: `region=${currentRegion || ""}&name=${
+                  currentCountry || ""
+                }`,
+                limit: PAGE_SIZE,
+                offset: (currentPage + 1) * PAGE_SIZE,
+              })
+            }
+          >
+            Load More
+          </Button>
+        )}
+      </Box>
     </Container>
   );
 };
