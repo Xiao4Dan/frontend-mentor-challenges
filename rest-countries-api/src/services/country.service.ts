@@ -1,4 +1,4 @@
-import { FetchCountriesParams } from "@/interfaces/Country";
+import { Country, FetchCountriesParams } from "@/interfaces/Country";
 
 const data = [
   {
@@ -16826,6 +16826,23 @@ class CountryService {
         resolve(uniqueRegions);
       }, 100);
     })
+  }
+
+  public async getCountryByAlpha3Code(alpha3Code: string, fields: string[]): Promise<any> {
+    return new Promise((resolve, _reject) => {
+      setTimeout(() => {
+        const country = data.find((country: any) => country.alpha3Code === alpha3Code);
+        if (fields.length > 0 && country) {
+          const filteredCountry: any = {};
+          fields.forEach((field: string) => {
+            filteredCountry[field] = (country as any)[field] || "";
+          });
+          resolve(filteredCountry);
+        } else {
+          resolve(country);
+        }
+      }, 100);
+    });
   }
 }
 

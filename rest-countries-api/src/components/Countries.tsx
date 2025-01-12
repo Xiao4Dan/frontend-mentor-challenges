@@ -18,10 +18,12 @@ import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { Country, FetchCountriesParams } from "@/interfaces/Country";
+import { useRouter } from "next/router";
 
 const PAGE_SIZE = 12;
 
 const Countries = () => {
+  const router = useRouter();
   const [regionsLoaded, setRegionsLoaded] = useState(false);
   const [regions, setRegions] = useState<string[]>([]);
   const [currentRegion, setCurrentRegion] = useState<string | null>(null);
@@ -162,14 +164,18 @@ const Countries = () => {
   useEffect(() => {
     // Format filter params
     const newFilter = [];
-    if (currentRegion && currentRegion !== '') {
+    if (currentRegion && currentRegion !== "") {
       newFilter.push(`region=${currentRegion}`);
     }
-    if (currentCountry && currentCountry !== '') {
+    if (currentCountry && currentCountry !== "") {
       newFilter.push(`name=${currentCountry}`);
     }
     setFilter(newFilter.join("&"));
   }, [currentCountry, currentRegion]);
+
+  const handleRedirect = (code: string) => {
+    router.push(`/${code}`);
+  };
 
   return (
     <Container
@@ -275,12 +281,14 @@ const Countries = () => {
         columns={{ sm: 4, md: 12, lg: 16 }}
       >
         {!loadingCountries &&
-          countries.map((country: any) => (
+          countries.map((country: Country) => (
             <Grid2 key={country.name} size={{ sm: 2, md: 4, lg: 4 }}>
               <Card
                 key={country.name}
                 elevation={0}
+                onClick={() => handleRedirect(country.alpha3Code)}
                 sx={{
+                  cursor: "pointer",
                   boxShadow:
                     "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);",
                 }}
@@ -323,9 +331,10 @@ const Countries = () => {
                         variant="body2"
                         sx={{ color: "text.secondary" }}
                       >
-                        {key === "population"
-                          ? numberFormat(country[key].toString(), ",")
-                          : country[key]}
+                        {key === "population" &&
+                          numberFormat(country.population.toString(), ",")}
+                        {key === "region" && country.region}
+                        {key === "capital" && country.capital}
                       </Typography>
                     </Box>
                   ))}

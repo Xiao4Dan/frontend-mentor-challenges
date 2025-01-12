@@ -6,6 +6,8 @@ import Container from "@mui/material/Container";
 
 import { Typography } from "@mui/material";
 import { DarkMode, LightMode } from "@mui/icons-material";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 interface HeaderProps {
   mode: string;
@@ -14,6 +16,7 @@ interface HeaderProps {
 
 const Header = ({ mode, onChangeMode }: HeaderProps) => {
   const isLightMode = mode.toLowerCase() === "light";
+  const router = useRouter();
   return (
     <AppBar
       position="static"
@@ -29,7 +32,13 @@ const Header = ({ mode, onChangeMode }: HeaderProps) => {
           <Typography
             variant="h5"
             component="h1"
-            sx={{ flexGrow: 1, color: "text.primary", fontWeight: 700 }}
+            sx={{
+              flexGrow: 1,
+              color: "text.primary",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+            onClick={() => router.push("/")}
           >
             Where in the world?
           </Typography>

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import CountryService from "../../services/country.service";
+import CountryService from "../../../services/country.service";
 import { FetchCountriesParams } from "@/interfaces/Country";
 
 export default async function CountriesHandler(
