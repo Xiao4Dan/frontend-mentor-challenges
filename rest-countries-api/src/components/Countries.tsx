@@ -2,7 +2,6 @@ import {
   Box,
   Button,
   Card,
-  CardActions,
   CardContent,
   CardMedia,
   CircularProgress,
@@ -13,43 +12,149 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Stack,
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { MouseEventHandler, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { Country, FetchCountriesParams } from "@/interfaces/Country";
+
+const PAGE_SIZE = 12;
 
 const Countries = () => {
-  const [loading, setLoading] = useState(false);
-  const [countries, setCountries] = useState([]);
+  const [regionsLoaded, setRegionsLoaded] = useState(false);
+  const [regions, setRegions] = useState<string[]>([]);
+  const [currentRegion, setCurrentRegion] = useState<string | null>(null);
 
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [currentCountry, setCurrentCountry] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string | null>(null);
+  const [lastFilter, setLastFilter] = useState<string | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(null);
   };
 
+  const fetchCountries = async ({
+    sort,
+    filter,
+    limit,
+    offset,
+  }: FetchCountriesParams) => {
+    // send get request with query params
+    const countriesRes = await fetch(
+      `/api/countries?sort=${sort}${
+        filter === "" ? "" : `&${filter}`
+      }&limit=${limit}&offset=${offset}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const countries = await countriesRes.json();
+    const { data, hasMore } = countries;
+    setHasMore(hasMore);
+    return data;
+  };
+
+  const fetchRegions = async () => {
+    const regionsRes = await fetch("/api/regions");
+    const regionsBody = await regionsRes.json();
+    return regionsBody;
+  };
+
   useEffect(() => {
-    (async function fetchData() {
+    (async () => {
       try {
-        setLoading(true);
-        const countriesRes = await fetch("/api/countries");
-        const body = await countriesRes.json();
-        if (body.length) {
-          setCountries(body);
-          console.log(body);
+        // Preload regions/options
+        const regionsBody = await fetchRegions();
+        if (!regionsBody) {
+          throw new Error("Failed to fetch regions");
         }
-      } catch (error: any) {
+        setRegions(regionsBody);
+        setRegionsLoaded(true);
+
+        // Fetch first page of countries
+        setLoadingCountries(true);
+        const countriesBody = await fetchCountries({
+          sort: "",
+          filter: "",
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        if (!countriesBody) {
+          throw new Error("Failed to fetch countries");
+        }
+        setCountries(countriesBody);
+        setLoadingCountries(false);
+      } catch (error) {
         console.error(error);
-      } finally {
-        setLoading(false);
       }
     })();
   }, []);
+
+  const handleLoadMore = async (
+    prev: Country[],
+    parms: FetchCountriesParams
+  ) => {
+    const newCountries = await fetchCountries(parms);
+    if (!newCountries) {
+      throw new Error("Failed to fetch countries");
+    }
+    setCurrentPage(currentPage + 1);
+    setCountries([...prev, ...newCountries]);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!regionsLoaded || loadingCountries) return;
+      if (filter !== lastFilter) {
+        // Perform any additional actions here if needed
+        setLoadingCountries(true);
+        setLastFilter(filter);
+        // console.log("fetching countries", currentRegion, currentCountry);
+        const countriesBody = await fetchCountries({
+          sort: "",
+          filter: filter || "",
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        if (!countriesBody) {
+          throw new Error("Failed to fetch countries");
+        }
+        setCurrentPage(0);
+        setCountries(countriesBody);
+        setLoadingCountries(false);
+      }
+    }, 500); // Check every half second
+
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, [filter, lastFilter]);
+
+  useEffect(() => {
+    // Format filter params
+    const newFilter = [];
+    if (currentRegion && currentRegion !== '') {
+      newFilter.push(`region=${currentRegion}`);
+    }
+    if (currentCountry && currentCountry !== '') {
+      newFilter.push(`name=${currentCountry}`);
+    }
+    setFilter(newFilter.join("&"));
+  }, [currentCountry, currentRegion]);
+
   return (
     <Container
       maxWidth="lg"
@@ -66,7 +171,11 @@ const Countries = () => {
           gap: "24px",
         }}
       >
-        <Paper component="form" sx={{ p: "2px 4px" }}>
+        <Paper
+          component="form"
+          sx={{ p: "2px 4px" }}
+          onSubmit={(e) => e.preventDefault()}
+        >
           <IconButton type="button" sx={{ p: "10px" }} aria-label="search">
             <SearchIcon />
           </IconButton>
@@ -74,6 +183,8 @@ const Countries = () => {
             sx={{ ml: 1, flex: 1 }}
             placeholder="Search for a country"
             inputProps={{ "aria-label": "search for a country" }}
+            value={currentCountry || ""}
+            onChange={(e) => setCurrentCountry(e.target.value)}
           />
         </Paper>
 
@@ -84,11 +195,12 @@ const Countries = () => {
             aria-expanded={open ? "true" : undefined}
             type="button"
             sx={{ py: 1.5, px: 2, width: 200 }}
-            aria-label="Filter by Region"
+            aria-label={currentRegion || "Filter by Region"}
             onClick={handleClick}
+            disabled={!regionsLoaded || loadingCountries}
           >
             <Typography variant="body1" component="p" sx={{ mr: 2 }}>
-              Filter by Region
+              {currentRegion || "Filter by Region"}
             </Typography>
             <KeyboardArrowDownIcon />
           </IconButton>
@@ -104,31 +216,28 @@ const Countries = () => {
             transformOrigin={{ vertical: "top", horizontal: "center" }}
             sx={{ width: 250, display: "block", mt: 1 }}
           >
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              Profile
-            </MenuItem>
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              My account
-            </MenuItem>
-            <MenuItem sx={{ width: 200 }} onClick={handleClose}>
-              Logout
-            </MenuItem>
+            {regions.map((region) => (
+              <MenuItem
+                key={region}
+                sx={{ width: 200 }}
+                onClick={() => {
+                  setCurrentRegion(region);
+                  handleClose();
+                }}
+              >
+                {region}
+              </MenuItem>
+            ))}
           </Menu>
         </Paper>
       </Box>
-
-      {loading && (
-        <Box sx={{ textAlign: "center" }}>
-          <CircularProgress color="secondary" size="30px" value={25} />
-        </Box>
-      )}
 
       <Grid2
         container
         spacing={{ xs: 2, md: 3 }}
         columns={{ sm: 4, md: 12, lg: 16 }}
       >
-        {!loading &&
+        {!loadingCountries &&
           countries.map((country: any) => (
             <Grid2 key={country.name} size={{ sm: 2, md: 4, lg: 4 }}>
               <Card key={country.name}>
@@ -144,6 +253,7 @@ const Countries = () => {
                   </Typography>
                   {["population", "region", "capital"].map((key: string) => (
                     <Box
+                      key={key}
                       sx={{
                         display: "flex",
                         flexDirection: "row",
@@ -169,6 +279,36 @@ const Countries = () => {
             </Grid2>
           ))}
       </Grid2>
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 2,
+          mt: 2,
+        }}
+      >
+        {loadingCountries && <CircularProgress color="secondary" size={30} />}
+        {!loadingCountries && hasMore && (
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() =>
+              handleLoadMore(countries, {
+                sort: "",
+                filter: `region=${currentRegion || ""}&name=${
+                  currentCountry || ""
+                }`,
+                limit: PAGE_SIZE,
+                offset: (currentPage + 1) * PAGE_SIZE,
+              })
+            }
+          >
+            Load More
+          </Button>
+        )}
+      </Box>
     </Container>
   );
 };
