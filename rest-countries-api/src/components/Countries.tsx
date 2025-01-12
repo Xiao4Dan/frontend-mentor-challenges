@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Card,
   CardContent,
   CardMedia,
@@ -346,8 +347,6 @@ const Countries = () => {
         {loadingCountries && <CircularProgress color="secondary" size={30} />}
         {!loadingCountries && hasMore && (
           <Button
-            variant="contained"
-            color="secondary"
             onClick={() =>
               handleLoadMore(countries, {
                 sort: "",
