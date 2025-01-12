@@ -29,7 +29,9 @@ const Countries = () => {
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [countries, setCountries] = useState<Country[]>([]);
   const [currentCountry, setCurrentCountry] = useState<string | null>(null);
-  const [lastCountry, setLastCountry] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string | null>(null);
+  const [lastFilter, setLastFilter] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -118,15 +120,14 @@ const Countries = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       if (!regionsLoaded || loadingCountries) return;
-      if (currentCountry !== lastCountry) {
-        console.log("currentCountry has changed:", currentCountry);
-        setLastCountry(currentCountry);
+      if (filter !== lastFilter) {
         // Perform any additional actions here if needed
         setLoadingCountries(true);
-        console.log("fetching countries", currentRegion, currentCountry);
+        setLastFilter(filter);
+        // console.log("fetching countries", currentRegion, currentCountry);
         const countriesBody = await fetchCountries({
           sort: "",
-          filter: `region=${currentRegion || ""}&name=${currentCountry || ""}`,
+          filter: filter || "",
           limit: PAGE_SIZE,
           offset: 0,
         });
@@ -140,11 +141,19 @@ const Countries = () => {
     }, 500); // Check every half second
 
     return () => clearInterval(interval); // Cleanup on unmount
-  }, [currentCountry, lastCountry]);
+  }, [filter, lastFilter]);
 
   useEffect(() => {
-    setLastCountry(null);
-  }, [currentRegion]);
+    // Format filter params
+    const newFilter = [];
+    if (currentRegion && currentRegion !== '') {
+      newFilter.push(`region=${currentRegion}`);
+    }
+    if (currentCountry && currentCountry !== '') {
+      newFilter.push(`name=${currentCountry}`);
+    }
+    setFilter(newFilter.join("&"));
+  }, [currentCountry, currentRegion]);
 
   return (
     <Container
@@ -188,7 +197,7 @@ const Countries = () => {
             sx={{ py: 1.5, px: 2, width: 200 }}
             aria-label={currentRegion || "Filter by Region"}
             onClick={handleClick}
-            disabled={!regionsLoaded}
+            disabled={!regionsLoaded || loadingCountries}
           >
             <Typography variant="body1" component="p" sx={{ mr: 2 }}>
               {currentRegion || "Filter by Region"}
