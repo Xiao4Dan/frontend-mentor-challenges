@@ -1,3 +1,5 @@
+import { FetchCountriesParams } from "@/interfaces/Country";
+
 const data = [
   {
     name: "Afghanistan",
@@ -16792,12 +16794,38 @@ const data = [
 ];
 
 class CountryService {
-  public async getCountries(): Promise<any> {
+  public async getCountries({ sort, region, name, limit, offset }: FetchCountriesParams): Promise<any> {
     return new Promise((resolve, _reject) => {
       setTimeout(() => {
-        resolve(data);
+        // simulate pagination
+        let dataRes = [...data];
+        if (sort) {
+          // front end doesn't have sort, skip for now
+        }
+        if (region) {
+          dataRes = dataRes.filter((country: any) => country.region.toLowerCase() === region.toLowerCase());
+        }
+        if (name) {
+          dataRes = dataRes.filter((country: any) => country.name.toLowerCase().includes(name.toLowerCase()));
+        }
+        // if limit and offset are provided, slice the data
+        if (limit && offset?.toString() && limit + offset > 0) {
+          dataRes = dataRes.slice(offset, offset + limit);
+        }
+        resolve(dataRes);
       }, 500);
     });
+  }
+
+  public async getRegions(): Promise<any> {
+    return new Promise((resolve, _reject) => {
+      setTimeout(() => {
+        // iterate through data and get all of the unique regions
+        const regions = data.map((country: any) => country.region);
+        const uniqueRegions = [...new Set(regions)];
+        resolve(uniqueRegions);
+      }, 100);
+    })
   }
 }
 
