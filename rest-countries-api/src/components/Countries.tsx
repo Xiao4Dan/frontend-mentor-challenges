@@ -1,6 +1,5 @@
 import {
   Box,
-  Button,
   Card,
   CardContent,
   CardMedia,
@@ -105,6 +104,22 @@ const Countries = () => {
     })();
   }, []);
 
+  const numberFormat = (_number: string, _sep: string) => {
+    return _number
+      .replace(
+        new RegExp(
+          "^(\\d{" +
+            (_number.length % 3 ? _number.length % 3 : 0) +
+            "})(\\d{3})",
+          "g"
+        ),
+        "$1 $2"
+      )
+      .replace(/(\d{3})+?/gi, "$1 ")
+      .trim()
+      .replace(/ /gi, _sep);
+  };
+
   const handleLoadMore = async (
     prev: Country[],
     parms: FetchCountriesParams
@@ -159,7 +174,7 @@ const Countries = () => {
     <Container
       maxWidth="lg"
       component="main"
-      sx={{ display: "flex", flexDirection: "column", my: 4, gap: 4 }}
+      sx={{ display: "flex", flexDirection: "column", my: 6, gap: 6 }}
     >
       <Box
         sx={{
@@ -173,33 +188,54 @@ const Countries = () => {
       >
         <Paper
           component="form"
-          sx={{ p: "2px 4px" }}
+          sx={{
+            p: "5px 15px",
+            boxShadow:
+              "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);",
+          }}
+          elevation={0}
           onSubmit={(e) => e.preventDefault()}
         >
           <IconButton type="button" sx={{ p: "10px" }} aria-label="search">
             <SearchIcon />
           </IconButton>
           <InputBase
-            sx={{ ml: 1, flex: 1 }}
-            placeholder="Search for a country"
-            inputProps={{ "aria-label": "search for a country" }}
+            sx={{ ml: 1, flex: 1, fontSize: 14, minWidth: 300 }}
+            placeholder="Search for a country..."
+            inputProps={{ "aria-label": "search for a country..." }}
             value={currentCountry || ""}
             onChange={(e) => setCurrentCountry(e.target.value)}
           />
         </Paper>
 
-        <Paper>
+        <Paper
+          sx={{
+            boxShadow:
+              "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);",
+          }}
+          elevation={0}
+        >
           <IconButton
             aria-controls={open ? "basic-menu" : undefined}
             aria-haspopup="true"
             aria-expanded={open ? "true" : undefined}
             type="button"
-            sx={{ py: 1.5, px: 2, width: 200 }}
+            sx={{
+              py: 1.5,
+              px: 2,
+              width: 200,
+              borderRadius: 0,
+              justifyContent: "space-between",
+            }}
             aria-label={currentRegion || "Filter by Region"}
             onClick={handleClick}
             disabled={!regionsLoaded || loadingCountries}
           >
-            <Typography variant="body1" component="p" sx={{ mr: 2 }}>
+            <Typography
+              variant="body1"
+              component="p"
+              sx={{ mr: 2, fontSize: 14 }}
+            >
               {currentRegion || "Filter by Region"}
             </Typography>
             <KeyboardArrowDownIcon />
@@ -234,21 +270,33 @@ const Countries = () => {
 
       <Grid2
         container
-        spacing={{ xs: 2, md: 3 }}
+        spacing={{ xs: 2, md: 4, lg: 7 }}
         columns={{ sm: 4, md: 12, lg: 16 }}
       >
         {!loadingCountries &&
           countries.map((country: any) => (
             <Grid2 key={country.name} size={{ sm: 2, md: 4, lg: 4 }}>
-              <Card key={country.name}>
+              <Card
+                key={country.name}
+                elevation={0}
+                sx={{
+                  boxShadow:
+                    "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);",
+                }}
+              >
                 <CardMedia
                   component="img"
                   alt="green iguana"
-                  height="140"
+                  height={140}
                   image={country.flags.png}
                 />
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="h5">
+                <CardContent sx={{ minHeight: "160px" }}>
+                  <Typography
+                    gutterBottom
+                    variant="h6"
+                    component="h6"
+                    sx={{ fontWeight: 700, mb: 2 }}
+                  >
                     {country.name}
                   </Typography>
                   {["population", "region", "capital"].map((key: string) => (
@@ -262,7 +310,11 @@ const Countries = () => {
                     >
                       <Typography
                         variant="body1"
-                        sx={{ fontWeight: 500, mr: 1 }}
+                        sx={{
+                          fontWeight: 600,
+                          mr: 1,
+                          textTransform: "capitalize",
+                        }}
                       >
                         {key}:
                       </Typography>
@@ -270,7 +322,9 @@ const Countries = () => {
                         variant="body2"
                         sx={{ color: "text.secondary" }}
                       >
-                        {country[key]}
+                        {key === "population"
+                          ? numberFormat(country[key].toString(), ",")
+                          : country[key]}
                       </Typography>
                     </Box>
                   ))}
